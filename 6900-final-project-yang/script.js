@@ -5,7 +5,7 @@ var w = d3.select('.plot').node().clientWidth,
     h = d3.select('.plot').node().clientHeight;
 
 //dispatcher
-var dispatcherStation = d3.dispatch('changestation');
+var dispatcherStation = d3.dispatch('changestation', 'station_select');
 
 
 //Module
@@ -16,31 +16,69 @@ var stationChart = d3.StationChart()
 
 var plot = d3.select('.plot').datum([]).call(stationChart);
 
-dispatcherStation.on('changestation',function(array){ //"array" here is nestCF
-    //var ticks = d3.range(0, array.length, 5);
-    //var histCF = d3.layout.histogram()  //--> refers to module?
-    //    .value(function(d){ return d.values.length; })
-    //    .range([0,array.length])
-    //    .bins(ticks);
-    //
-    //var histStationCF = histCF(array);
-    //console.log(histStationCF);
-
-    //stationChart.value(function(d){ return d.values.length; })
-    //    .bins(ticks)
-    //    .range([0,array.length])
+dispatcherStation.on('changestation',function(array){ 
 
     plot.datum(array)
         .call(stationChart)
 })
 
 
+
+//PATRICK'S GLOBAL VARIABLES
+var width = d3.select('#plot').node().clientWidth,
+    height = d3.select('#plot').node().clientHeight,
+    centered, mapped_trips,
+    zoomed = false,
+    switch_a = false;
+
+var selected_station,
+    trips_from,
+    trips_to;
+
+var from_or_two,
+    time_of_day,
+    long_or_short;
+
+//SVG FOR MAP
+var svg = d3.select( "#plot" )
+  .append( "svg" )
+  .attr( "width", width )
+  .attr( "height", height );
+
+
+svg.append("rect")
+    .attr("class", "background")
+    .attr("width", width)
+    .attr("height", height)
+    .style('fill', 'none')
+    .on("click", clicked);
+
+var g = svg.append( "g" );
+
+//PROJECTION 
+var albersProjection = d3.geo.albers()
+  .scale( 260000 )
+  .rotate( [71.087,0] )
+  .center( [0, 42.33] )
+  .translate( [width/2,height/2] );
+
+//DRAWING THE PATHS OF geoJSON OBJECTS
+var geoPath = d3.geo.path()
+    .projection( albersProjection )
+
+//END PATRICK'S GLOBAL VARIABLES
+
 d3_queue.queue()
-    .defer(d3.csv,'../data/hubway_trips_reduced.csv',parse)
-    .defer(d3.csv,'../data/hubway_stations.csv',parseStations)
+    .defer(d3.csv,'data/hubway_trips_reduced.csv', parse)
+    .defer(d3.csv,'data/hubway_stations.csv', parseStations)
+    .defer(d3.json, 'data/neighborhoods.json') //boston
+    .defer(d3.json, 'data/camb_zipcode.json') //cambridge
+    .defer(d3.json, 'data/somerville_wards.json') //sommerville
+    .defer(d3.json, 'data/brookline_zips.json') //brookline
     .await(dataLoaded);
 
-function dataLoaded(err,rows,stations){
+function dataLoaded(err, rows, stations, bos, cam, som, bro){
+
 
     //crossfilter and dimensions
     var cfStart = crossfilter(rows);
@@ -63,11 +101,6 @@ function dataLoaded(err,rows,stations){
             .key(function(d){return d.endStation})
             .rollup(function(d){return d.length})  //rollup!!
             .entries(tripsByStart1.filter(this.value).top(Infinity));
-
-
-        //tripsByStart1.filter(this.value).top(Infinity);
-        //var groupStation = tripsByStart1.group(function(d){return d.endStation; }).all();
-        //console.log(groupStation);
 
 
         var cf2Start = crossfilter(nestStart);
@@ -103,14 +136,7 @@ function dataLoaded(err,rows,stations){
                 d3.selectAll('.btn-group .time').on('click', function(){
                     var id = d3.select(this).attr('id');
                     if(id=='morning'){
-                        //var tripsByTimeMorning = tripsByTimeStart.filter(morning).top(Infinity);
-                        //var nestTime = d3.nest()
-                        //    .key(function(d){return d.endStation})
-                        //    .rollup(function(d){return d.length})  //rollup!!
-                        //    .entries(tripsByTimeMorning);
-                        //
-                        //var cfTime = crossfilter(nestTime);
-                        //var topTripsTime = cfTime.dimension(function(d){return d.values;}).top(10);
+                        
                         var topTripsStartMorning = timeDimension(tripsByTimeStart, morning);
                         console.log(topTripsStartMorning);
                         dispatcherStation.changestation(topTripsStartMorning);
@@ -133,15 +159,6 @@ function dataLoaded(err,rows,stations){
                 d3.selectAll('.btn-group .time').on('click', function(){
                     var id = d3.select(this).attr('id');
                     if(id=='morning'){
-                        //var tripsByTimeMorning = tripsByTimeEnd.filter(morning).top(Infinity);
-                        //var nestTime = d3.nest()
-                        //    .key(function(d){return d.startStation})
-                        //    .rollup(function(d){return d.length})  //rollup!!
-                        //    .entries(tripsByTimeMorning);
-                        //
-                        //var cfTime = crossfilter(nestTime);
-                        //var topTripsTime = cfTime.dimension(function(d){return d.values;}).top(10);
-                        //dispatcherStation.changestation(topTripsTime);
 
                         var topTripsEndMorning = timeDimensionEnd(tripsByTimeEnd, morning);
                         console.log(topTripsEndMorning);
@@ -159,34 +176,88 @@ function dataLoaded(err,rows,stations){
             }
         });
 
-
-
-
-        ////when click button "morning", "afternoon" or "evening"
-        //d3.selectAll('.btn-group .time').on('click', function(){
-        //    var id = d3.select(this).attr('id');
-        //    if(id=='morning'){
-        //        var tripsByTimeMorning = tripsByTimeStart.filter(morning).top(Infinity);
-        //        var nestTime = d3.nest()
-        //            .key(function(d){return d.endStation})
-        //            .rollup(function(d){return d.length})  //rollup!!
-        //            .entries(tripsByTimeMorning);
-        //
-        //        var cfTime = crossfilter(nestTime);
-        //        var topTripsTime = cfTime.dimension(function(d){return d.values;}).top(10);
-        //        console.log(topTripsTime);
-        //        dispatcherStation.changestation(topTripsTime);
-        //    }if(id=='afternoon'){
-        //
-        //    }else{
-        //
-        //    }
-        //})
-
     })
+
+    //PATRICK'S JS
+    //APPEND NEIGHBORHOODS ON MAP
+    g.selectAll( ".boston" )
+        .data( bos.features )
+        .enter()
+        .append('path')
+        .attr('class', 'boston neighborhoods')
+        .attr( 'd', geoPath )
+        .style('fill', '#888') //boston
+        .on("click", clicked);
+
+    g.selectAll( ".cambridge" )
+        .data( cam.features )
+        .enter()
+        .append('path')
+        .attr('class', 'cambridge neighborhoods')
+        .attr( "d", geoPath )
+        .style('fill', '#999') //cambridge
+        .on("click", clicked);
+
+    g.selectAll( ".somerville" )
+        .data( som.features )
+        .enter()
+        .append('path')
+        .attr('class', 'somerville neighborhoods')
+        .attr( "d", geoPath )
+        .style('fill', '#aaa')
+        .on("click", clicked); //somerville
+
+    g.selectAll( ".brookline" )
+        .data( bro.features )
+        .enter()
+        .append('path')
+        .attr('class', 'brookline neighborhoods')
+        .attr( "d", geoPath )
+        .style('fill', '#bbb')
+        .on("click", clicked); //somerville
+    //END OF NEIGHBORHOODS ON MAP
+
+    //PLOT STATIONS ON MAP
+    g.selectAll('.station_dot')
+        .data( stations )
+        .enter()
+        .append('circle')
+        .attr('class', 'station_dot')
+        .attr('station_num', function(d) { return d.id })
+        .attr('id', function(d) { return d.fullName })
+        .attr('cx', function(d) {
+          var xy = albersProjection(d.lngLat);
+          return xy[0]; })
+        .attr('cy', function(d) {
+          var xy = albersProjection(d.lngLat);
+          return xy[1]; })
+        .attr('r', sc_rad)
+        .style('fill', 'blue')
+        .style('stroke-width', 0)
+        .on('click', set_station_num);
+
+    //END OF STATIONS ON MAP
+
+    svg.append('rect')
+        .attr('x', 300)
+        .attr('y', 662)
+        .attr('height', 30)
+        .attr('width', 400)
+        .style('fill', "#ffffff")
+        .style('opacity', .75)
+
+    svg.append('text')
+        .text('Boston, Brookline, Cambridge, Sommerville')
+        .attr("font-family", "serif")
+        .attr("font-size", "20px")
+        .attr("fill", "black")
+        .attr("font-weight", "bold")
+        .attr('x', 310)
+        .attr('y', 682);
 
 
 } //end of dataLoaded
+
 
 
 function timeDimension(cfdimension, time){
@@ -215,6 +286,75 @@ function timeDimensionEnd(cfdimension, time){
 
     return topTripsTime;
 }
+
+//PATRICK'S FUNCTIONS
+//
+// CLICK TO GET INFO ON STATION
+// now assign this console log to a global variable
+//
+
+function set_station_num (d) {
+
+  selected_station = d.id;
+  
+  console.log(this);
+
+  console.log(selected_station);
+  
+  //highlight map dot
+
+  //NEEDS TO BE EDITED:
+  dispatcherStation.station_select(id)
+
+} 
+
+
+//
+// ZOOMING AND CLICKING FUNCTIONS OF MAP
+// click area to zoom in on it
+//
+
+var sc_rad = function scaleradius () {
+    
+    if (zoomed == true){
+      radius = 5;
+      return radius
+    }
+    if (zoomed == false){
+      radius = 2;
+      return radius
+    }
+    
+}
+
+function clicked(d) {
+  var x, y, k;
+
+  if (d && centered !== d) {
+    var centroid = geoPath.centroid(d);
+    x = centroid[0];
+    y = centroid[1];
+    k = 4;
+    zoomed = true;
+    centered = d;
+  } else {
+    x = width / 2;
+    y = height / 2;
+    k = 1;
+    zoomed = false;
+    centered = null;
+  }
+
+  g.selectAll(".neighborhoods")
+      .classed("active", centered && function(d) { return d === centered; });
+
+  g.transition()
+      .duration(750)
+      .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+      //.style("stroke-width", 1.5 / k + "px");
+}
+
+
 
 /*-------------------------- Parse data -----------------------*/
 function parse(d){
@@ -248,4 +388,10 @@ function parseStations(s){
         .append('option')
         .html(s.station)
         .attr('value', s.id);
+
+    return {
+        id: s.id,
+        fullName: s.station,
+        lngLat: [+s.lng, +s.lat]
+    };
 }

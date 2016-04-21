@@ -39,6 +39,11 @@ var albersProjection = d3.geo.albers()
 var geoPath = d3.geo.path()
     .projection( albersProjection )
 
+d3.send_station_to_module = function() {
+  console.log(selected_station);
+  return selected_station;
+}
+
 d3_queue.queue()
     .defer(d3.csv,'data/hubway_stations.csv', parse_stations)
     .defer(d3.json, 'data/neighborhoods.json') //boston
@@ -61,41 +66,41 @@ function dataLoaded(err, stations, bos, cam, som, bro, trips) {
   // populate drop down menu for stations
   //
 
-  var select = d3.select("#dropdown")
+  // var select = d3.select("#dropdown")
 
-    select
-      .on("change", function(d) {
-        var value = d3.select(this).property("value");
-        //alert(value);
-      });
+  //   select
+  //     .on("change", function(d) {
+  //       var value = d3.select(this).property("value");
+  //       //alert(value);
+  //     });
 
-    select.selectAll("option")
-      .data(stations)
-      .enter()
-        .append("option")
-        .attr("value", function (d) { return d.id; })
-        .text(function (d) { return d.id+": "+d.fullName; });
+  //   select.selectAll("option")
+  //     .data(stations)
+  //     .enter()
+  //       .append("option")
+  //       .attr("value", function (d) { return d.id; })
+  //       .text(function (d) { return d.id+": "+d.fullName; });
 
-  var button_select = d3.selectAll("button")
+  // var button_select = d3.selectAll("button")
 
-  button_select.forEach( function(e) {
-    this.addEventListener('click', function(d){
+  // button_select.forEach( function(e) {
+  //   this.addEventListener('click', function(d){
       
-      var elemID = e.id
+  //     var elemID = e.id
       
-      if (elemID=="se1" || "se2"){
-        selected_station = elemID;
-        time_of_day = null;
-        long_or_short = null;
-      } 
+  //     if (elemID=="se1" || "se2"){
+  //       selected_station = elemID;
+  //       time_of_day = null;
+  //       long_or_short = null;
+  //     } 
 
-      if (elemID=="tod1"||"tod2"||"tod3"){
-        from_or_two = null;
-        time_of_day = null;
-        long_or_short = null;
-      }
-    });
-  })
+  //     if (elemID=="tod1"||"tod2"||"tod3"){
+  //       from_or_two = null;
+  //       time_of_day = null;
+  //       long_or_short = null;
+  //     }
+  //   });
+  // })
   
     
 
@@ -108,17 +113,17 @@ function dataLoaded(err, stations, bos, cam, som, bro, trips) {
     var tripsByStartSt = cross_trips.dimension(function(d){return d.startStation}),
         tripsByEndSt = cross_trips.dimension(function(d){return d.endStation});
   
-  var nest_start_trips, nest_end_trips;
-    
-  nest_start_trips = d3.nest()
-      .key(function(d) { return d.startStation; })
-      .entries(trips);
-  nest_end_trips = d3.nest()
-      .key(function(d) { return d.endStation; }) 
-      .entries(trips)
+    var nest_start_trips, nest_end_trips;
+      
+    nest_start_trips = d3.nest()
+        .key(function(d) { return d.startStation; })
+        .entries(trips);
+    nest_end_trips = d3.nest()
+        .key(function(d) { return d.endStation; }) 
+        .entries(trips)
 
-  mapped_start_trips = d3.map(nest_start_trips, function (d) { return d.key });
-  mapped_end_trips = d3.map(nest_end_trips, function (d) { return d.key });
+    mapped_start_trips = d3.map(nest_start_trips, function (d) { return d.key });
+    mapped_end_trips = d3.map(nest_end_trips, function (d) { return d.key });
 
 
   // console.log(nest_start_trips);
@@ -166,9 +171,6 @@ function dataLoaded(err, stations, bos, cam, som, bro, trips) {
     .attr( "d", geoPath )
     .style('fill', '#bbb')
     .on("click", clicked); //somerville
-
-
-  //console.log(stations[0].lngLat)
 
   g.selectAll('.station_dot')
     .data( stations )
@@ -228,8 +230,8 @@ function get_data (d) {
   console.log(trips_to);
   console.log(trips_from);
 
-}
- 
+} 
+
 
 //
 // ZOOMING AND CLICKING FUNCTIONS OF MAP
