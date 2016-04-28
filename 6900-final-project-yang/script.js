@@ -29,7 +29,8 @@ var width = d3.select('#plot').node().clientWidth,
     height = d3.select('#plot').node().clientHeight,
     centered, mapped_trips,
     zoomed = false,
-    switch_a = false;
+    switch_a = false,
+    rad =2;
 
 var selected_station,
     trips_from,
@@ -38,6 +39,9 @@ var selected_station,
 var from_or_two,
     time_of_day,
     long_or_short;
+
+var tri = [{"x":-rad/3, "y":-5*rad/2}, {"x":rad/3,"y":-5*rad/2}, {"x":0,"y":-7*rad/2}];
+
 
 //SVG FOR MAP
 var svg = d3.select( "#plot" )
@@ -69,17 +73,17 @@ var geoPath = d3.geo.path()
 //END PATRICK'S GLOBAL VARIABLES
 
 d3_queue.queue()
-    .defer(d3.csv,'data/hubway_trips_reduced.csv', parse)
-    .defer(d3.csv,'data/hubway_stations.csv', parseStations)
-    .defer(d3.json, 'data/neighborhoods.json') //boston
-    .defer(d3.json, 'data/camb_zipcode.json') //cambridge
-    .defer(d3.json, 'data/somerville_wards.json') //sommerville
-    .defer(d3.json, 'data/brookline_zips.json') //brookline
+    .defer(d3.csv,'./data/hubway_trips_reduced.csv', parse)
+    .defer(d3.csv,'./data/hubway_stations.csv', parseStations)
+    .defer(d3.json, './data/neighborhoods.json') //boston
+    .defer(d3.json, './data/camb_zipcode.json') //cambridge
+    .defer(d3.json, './data/somerville_wards.json') //sommerville
+    .defer(d3.json, './data/brookline_zips.json') //brookline
     .await(dataLoaded);
 
 function dataLoaded(err, rows, stations, bos, cam, som, bro){
 
-
+   
     //crossfilter and dimensions
     var cfStart = crossfilter(rows);
     var tripsByStart1 = cfStart.dimension(function(d){return d.startStation;}),
@@ -177,6 +181,8 @@ function dataLoaded(err, rows, stations, bos, cam, som, bro){
         });
 
     })
+    
+    var interp = 'cardinal-closed';
 
     //PATRICK'S JS
     //APPEND NEIGHBORHOODS ON MAP
@@ -186,7 +192,7 @@ function dataLoaded(err, rows, stations, bos, cam, som, bro){
         .append('path')
         .attr('class', 'boston neighborhoods')
         .attr( 'd', geoPath )
-        .style('fill', '#888') //boston
+        //.style('fill', '#888') //boston
         .on("click", clicked);
 
     g.selectAll( ".cambridge" )
@@ -195,7 +201,7 @@ function dataLoaded(err, rows, stations, bos, cam, som, bro){
         .append('path')
         .attr('class', 'cambridge neighborhoods')
         .attr( "d", geoPath )
-        .style('fill', '#999') //cambridge
+        //.style('fill', '#999') //cambridge
         .on("click", clicked);
 
     g.selectAll( ".somerville" )
@@ -204,7 +210,7 @@ function dataLoaded(err, rows, stations, bos, cam, som, bro){
         .append('path')
         .attr('class', 'somerville neighborhoods')
         .attr( "d", geoPath )
-        .style('fill', '#aaa')
+        //.style('fill', '#aaa')
         .on("click", clicked); //somerville
 
     g.selectAll( ".brookline" )
@@ -213,9 +219,40 @@ function dataLoaded(err, rows, stations, bos, cam, som, bro){
         .append('path')
         .attr('class', 'brookline neighborhoods')
         .attr( "d", geoPath )
-        .style('fill', '#bbb')
-        .on("click", clicked); //somerville
+        //.style('fill', '#bbb')
+        .on("click", clicked); //brookline
     //END OF NEIGHBORHOODS ON MAP
+
+
+
+    //STATION CONNECTION TO ARBITRARY POINTS (hidden)
+    // g.selectAll(".connect")
+    //     .data(stations)
+    //     .enter()
+    //         .append('line')
+    //         .attr('class', 'connect')
+    //         .attr('x1', function(d) {
+    //           var xy = albersProjection(d.lngLat);
+    //           return xy[0]; })
+    //         .attr('y1', function(d) {
+    //           var xy = albersProjection(d.lngLat);
+    //           return xy[1]; })
+    //         .attr('x2', dest[0])
+    //         .attr('y2', dest[1])
+    //         .attr('stroke-width', '0.5px')
+    //         .attr('stroke', 'lightblue')
+
+    var z = Math.floor(Math.random() * (stations.length-1));
+    var dest = albersProjection([stations[z].lngLat[0], stations[z].lngLat[1]]);
+        console.log("dest: "+dest);
+
+    //ARBITRARY DESTINATION (hidden)
+    // g.append('circle')
+    //     .attr('cx', dest[0])
+    //     .attr('cy', dest[1])
+    //     .attr('r', 2.5)
+    //     .style('fill', "orange")
+
 
     //PLOT STATIONS ON MAP
     g.selectAll('.station_dot')
@@ -231,10 +268,58 @@ function dataLoaded(err, rows, stations, bos, cam, som, bro){
         .attr('cy', function(d) {
           var xy = albersProjection(d.lngLat);
           return xy[1]; })
-        .attr('r', sc_rad)
+        .attr('r', rad)
         .style('fill', 'blue')
         .style('stroke-width', 0)
-        .on('click', set_station_num);
+        .on('click', set_station_num)
+
+
+    //PLOT TRIANGLES AROUND STATION DOT
+    g.selectAll('polygon')
+        .data( stations )
+        .enter()
+            .append('polygon')
+            .attr("points",function(d) { 
+                return tri.map(function(e) {
+                    return [(e.x),(e.y)].join(","); })
+                .join(" "); })
+            .attr('transform', function(d) { 
+                    var xy = albersProjection(d.lngLat);
+                    var slope1 = (dest[0]-xy[0])/(xy[1]-dest[1])
+                    //var atan = Math.atan( (slope) )
+                    
+                    var quad_shift, angle;
+                        if ( dest[0] < xy[0] && dest[1] < xy[1] ) { 
+                                angle = Math.atan( slope1 );
+                                quad_shift = angle; 
+                                //console.log(angle*180/Math.PI+' is angle in quad 2'); 
+                            }
+                        else if ( dest[0] > xy[0] && dest[1] < xy[1] ) {
+                                angle = Math.atan( (slope1) );
+                                quad_shift = angle; 
+                                //console.log(angle*180/Math.PI+' is angle in quad 3'); 
+                            }
+                        else if ( dest[0] < xy[0] && dest[1] > xy[1] ) {
+                                angle = Math.atan( (slope1) ); 
+                                quad_shift = Math.PI + angle; 
+                                //console.log(angle*180/Math.PI+' is angle in quad 1'); 
+                            }
+                        else if ( dest[0] > xy[0] && dest[1] > xy[1] ) { 
+                                angle = Math.atan( (xy[1]-dest[1])/(dest[0]-xy[0]) );
+                                quad_shift = (Math.PI/2) + (Math.PI-angle) + Math.PI; 
+                                //console.log(angle*180/Math.PI+' is angle in quad 4'); 
+                            }
+                        else { console.log('didnt work'); }
+                        var degrees = quad_shift*180/(Math.PI) 
+                    
+                    //console.log(d.id+', '+slope+', '+atan+', '+rot_ex()+', '+degr);
+                    return 'translate('+xy[0]+', '+xy[1]+') rotate ('+degrees+')'
+                })
+            .attr("stroke","yellow")
+            .attr("stroke-width", rad/2);
+
+    
+            
 
     //END OF STATIONS ON MAP
 
@@ -255,6 +340,7 @@ function dataLoaded(err, rows, stations, bos, cam, som, bro){
         .attr('x', 310)
         .attr('y', 682);
 
+    
 
 } //end of dataLoaded
 
@@ -314,27 +400,15 @@ function set_station_num (d) {
 // click area to zoom in on it
 //
 
-var sc_rad = function scaleradius () {
-    
-    if (zoomed == true){
-      radius = 5;
-      return radius
-    }
-    if (zoomed == false){
-      radius = 2;
-      return radius
-    }
-    
-}
-
 function clicked(d) {
+    //console.log(x+', '+y+', '+k)
   var x, y, k;
 
   if (d && centered !== d) {
     var centroid = geoPath.centroid(d);
     x = centroid[0];
     y = centroid[1];
-    k = 4;
+    k = 3.5;
     zoomed = true;
     centered = d;
   } else {
@@ -345,8 +419,21 @@ function clicked(d) {
     centered = null;
   }
 
+  //console.log(x+', '+y+', '+k)
+
   g.selectAll(".neighborhoods")
       .classed("active", centered && function(d) { return d === centered; });
+
+  g.selectAll('.station_dot')
+    .transition()
+    .duration(550)
+        .attr('r', function() { 
+            if(k == 1) {return rad}
+            else { return rad*k/2 } })
+        .attr('stroke-width', function(){
+            if(k == 1) {return rad/2}
+            else { return rad*k/2 } });
+        
 
   g.transition()
       .duration(750)

@@ -106,19 +106,22 @@ h5
 	
 }
 
-/*MAP*/
+
+/*------------- MAP ------------------*/
 .overlay {
   background-color: none;
   pointer-events: all;
 }
 
 .neighborhoods {
-	stroke: #000;
+	stroke: #fff;
+	fill: #ccc;
+	stroke-linejoin: 'round';
 	stroke-width: .5;
 }
 
 .boston {
-	background-color: yellow;
+	/*background-color: yellow;*/
 }
 
 .station_dot {

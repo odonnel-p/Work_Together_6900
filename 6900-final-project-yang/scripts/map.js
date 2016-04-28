@@ -45,12 +45,12 @@ d3.send_station_to_module = function() {
 }
 
 d3_queue.queue()
-    .defer(d3.csv,'data/hubway_stations.csv', parse_stations)
-    .defer(d3.json, 'data/neighborhoods.json') //boston
-    .defer(d3.json, 'data/camb_zipcode.json') //cambridge
-    .defer(d3.json, 'data/somerville_wards.json') //sommerville
-    .defer(d3.json, 'data/brookline_zips.json') //brookline
-    .defer(d3.csv, 'data/hubway_trips_reduced.csv', parse_trips)
+    .defer(d3.csv,'./data/hubway_stations.csv', parse_stations)
+    .defer(d3.json, './data/neighborhoods.json') //boston
+    .defer(d3.json, './data/camb_zipcode.json') //cambridge
+    .defer(d3.json, './data/somerville_wards.json') //sommerville
+    .defer(d3.json, './data/brookline_zips.json') //brookline
+    .defer(d3.csv, './data/hubway_trips_reduced.csv', parse_trips)
     .await(dataLoaded)
 
 function dataLoaded(err, stations, bos, cam, som, bro, trips) {
@@ -106,7 +106,7 @@ function dataLoaded(err, stations, bos, cam, som, bro, trips) {
 
   //
   // DATA ARCHITECTURE
-  // set up data so that when clickec a station dot can point to all trips from/to station
+  // set up data so that when clicked a station dot can point to all trips from/to station
   //
 
     var cross_trips = crossfilter(trips);
